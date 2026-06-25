@@ -164,7 +164,9 @@ with col_field:
 # ==============================================================================
 # LIGNE 4 : COURBES HISTORIQUES (OPTIMISÉES)
 # ==============================================================================
-st.markdown("---")
+# ==============================================================================
+# LIGNE 4 : COURBES HISTORIQUES (CORRIGÉES ET OPTIMISÉES)
+# ==============================================================================
 col_graph1, col_graph2 = st.columns(2)
 
 with col_graph1:
@@ -177,18 +179,14 @@ with col_graph1:
             mode='lines', name='CO (ppm)', line=dict(color='#e74c3c', width=3)
         ))
     
-    # Configuration du calibrage et de la légende
     fig_co.update_layout(
         yaxis_title="Concentration (ppm)",
         xaxis_title="Temps",
-        yaxis=dict(
-            autorange=True,        # S'adapte au calibre des données
-            fixedrange=False,
-            zeroline=True
-        ),
+        yaxis=dict(autorange=True, fixedrange=False, zeroline=True),
         template="plotly_white",
-        hovermode="x unified"      # Très utile pour le suivi précis
+        hovermode="x unified"
     )
+    # Clé unique pour éviter l'erreur DuplicateElementId
     st.plotly_chart(fig_co, use_container_width=True, key="co_chart_dynamic")
 
 with col_graph2:
@@ -201,16 +199,22 @@ with col_graph2:
             mode='lines', name='I (mA)', line=dict(color='#f39c12', width=3)
         ))
     
-    # Configuration du calibrage et de la légende
     fig_i.update_layout(
         yaxis_title="Courant de décharge (mA)",
         xaxis_title="Temps",
-        yaxis=dict(
-            autorange=True,        # S'adapte au calibre des données
-            fixedrange=False,
-            zeroline=True
-        ),
+        yaxis=dict(autorange=True, fixedrange=False, zeroline=True),
         template="plotly_white",
+        hovermode="x unified"
+    )
+    # Clé unique pour éviter l'erreur DuplicateElementId
+    st.plotly_chart(fig_i, use_container_width=True, key="current_chart_dynamic")
+
+# ==============================================================================
+# RAFRAÎCHISSEMENT
+# ==============================================================================
+if active_monitoring:
+    time.sleep(0.1)
+    st.rerun()
         hovermode="x unified"
     )
     st.plotly_chart(fig_i, use_container_width=True, key="current_chart_dynamic")

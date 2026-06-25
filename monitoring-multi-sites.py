@@ -15,7 +15,7 @@ st.set_page_config(
     page_icon="⚡"
 )
 
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+st.title("Plateforme de Monitoring Multi-Sites et de Diagnostic de Défauts pour Unités de Dépollution Atmosphérique")
 st.markdown("---")
 
 # ==============================================================================

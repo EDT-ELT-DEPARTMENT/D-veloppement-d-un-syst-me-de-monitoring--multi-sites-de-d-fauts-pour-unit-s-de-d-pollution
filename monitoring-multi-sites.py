@@ -5,51 +5,48 @@ import plotly.graph_objects as go
 import time
 from datetime import datetime, timedelta
 
-# ==========================================
-# Configuration de la page
-# ==========================================
+# ==============================================================================
+# CONFIGURATION DE LA PLATEFORME
+# ==============================================================================
 st.set_page_config(
-    page_title="Monitoring Industriel | Supervision", 
-    page_icon="🏭", 
+    page_title="Monitoring Sécurité CO", 
+    page_icon="⚠️", 
     layout="wide"
 )
 
-# ==========================================
-# Fonctions de simulation de données
-# ==========================================
+# ==============================================================================
+# GÉNÉRATION DES DONNÉES (Simulation Temps Réel)
+# ==============================================================================
 def get_sensor_data(site_type, points=50):
-    """
-    Génère des données de simulation pour les capteurs industriels.
-    Dans une version de production, cette fonction sera remplacée par 
-    une requête vers votre base de données ou votre flux MQTT.
-    """
+    """Génère des données centrées sur la sécurité : Tension, Courant, CO."""
     times = [datetime.now() - timedelta(minutes=i) for i in range(points, 0, -1)]
     
     if site_type == "Cimenterie":
-        tension = np.random.normal(50, 2, points)
-        courant = np.random.normal(800, 50, points)
-        poussieres = np.random.normal(15, 3, points)
-        return pd.DataFrame({
-            "Heure": times, 
-            "Tension_kV": tension, 
-            "Courant_mA": courant, 
-            "Poussieres_mg": poussieres
-        })
+        # Paramètres pour Cimenterie (Filtrage électrostatique)
+        tension = np.random.normal(50, 2, points)      # kV
+        courant = np.random.normal(800, 50, points)    # mA
+        co_ppm = np.random.normal(25, 2, points)       # ppm (Concentration CO)
         
-    elif site_type == "Installation Pétrolière":
-        debit_gaz = np.random.normal(15000, 500, points)
-        so2 = np.random.normal(45, 5, points)
-        nox = np.random.normal(180, 10, points)
-        return pd.DataFrame({
-            "Heure": times, 
-            "Debit_m3h": debit_gaz, 
-            "SO2_mg": so2, 
-            "NOx_mg": nox
-        })
+    else: # Installation Pétrolière
+        # Paramètres pour Pétrolier (Réacteur Plasma)
+        tension = np.random.normal(7, 1.5, points)     # kV
+        courant = np.random.normal(6, 2, points)       # mA
+        co_ppm = np.random.normal(600, 50, points)     # ppm (Concentration CO)
+        
+    return pd.DataFrame({
+        "Heure": times,
+        "Tension_kV": tension,
+        "Courant_mA": courant,
+        "CO_ppm": co_ppm
+    })
 
-# ==========================================
-# Interface Utilisateur (Sidebar)
-# ==========================================
+# ==============================================================================
+# INTERFACE UTILISATEUR
+# ==============================================================================
+st.title("Supervision Sécurité Gaz : Monitoring du CO")
+st.markdown("---")
+
+# Sidebar
 st.sidebar.title("Paramètres de Monitoring")
 site_selection = st.sidebar.selectbox(
     "Sélectionnez le site à surveiller :", 
@@ -57,58 +54,61 @@ site_selection = st.sidebar.selectbox(
 )
 auto_refresh = st.sidebar.checkbox("Activer le rafraîchissement temps réel", value=False)
 
-st.title(f"Supervision de l'Unité de Dépollution : {site_selection}")
-st.markdown("---")
+# Récupération des données
+df = get_sensor_data(site_selection)
+latest = df.iloc[-1]
 
-# ==========================================
-# Logique d'affichage par site
-# ==========================================
+# ==============================================================================
+# KPIs (Indicateurs de Performance)
+# ==============================================================================
+st.subheader(f"État actuel : {site_selection}")
 
-# Cas 1 : Cimenterie
-if site_selection == "Cimenterie":
-    st.subheader("État de l'Électrofiltre (Filtre à particules)")
-    
-    # Récupération des données
-    df = get_sensor_data("Cimenterie")
-    latest = df.iloc[-1]
-    
-    # Affichage des KPIs
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Tension Haute Tension", f"{latest['Tension_kV']:.1f} kV")
-    col2.metric("Courant de Décharge", f"{latest['Courant_mA']:.0f} mA")
-    col3.metric("Émission Particules Fines", f"{latest['Poussieres_mg']:.1f} mg/Nm³")
-    
-    # Visualisation
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["Heure"], y=df["Poussieres_mg"], mode='lines+markers', name='Poussières (mg/Nm³)', line=dict(color='red')))
-    fig.add_trace(go.Scatter(x=df["Heure"], y=df["Tension_kV"], mode='lines', name='Tension (kV)', line=dict(color='blue', dash='dot')))
-    fig.update_layout(title="Évolution des paramètres opératoires et des rejets", xaxis_title="Temps", yaxis_title="Valeurs", template="plotly_white")
-    st.plotly_chart(fig, use_container_width=True)
+# Affichage des 3 métriques critiques
+col1, col2, col3 = st.columns(3)
+col1.metric("Tension Appliquée", f"{latest['Tension_kV']:.1f} kV")
+col2.metric("Courant de Décharge", f"{latest['Courant_mA']:.1f} mA")
+col3.metric("Concentration CO", f"{latest['CO_ppm']:.1f} ppm", delta="ALERTE" if latest['CO_ppm'] > 750 else "Normal", delta_color="inverse")
 
-# Cas 2 : Installation Pétrolière
-elif site_selection == "Installation Pétrolière":
-    st.subheader("Unité de Traitement des Gaz (Désulfuration & DeNOx)")
-    
-    # Récupération des données
-    df = get_sensor_data("Installation Pétrolière")
-    latest = df.iloc[-1]
-    
-    # Affichage des KPIs
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Débit des Gaz", f"{latest['Debit_m3h']:.0f} m³/h")
-    col2.metric("Émission SO2", f"{latest['SO2_mg']:.1f} mg/Nm³")
-    col3.metric("Émission NOx", f"{latest['NOx_mg']:.1f} mg/Nm³")
-    
-    # Visualisation
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df["Heure"], y=df["SO2_mg"], mode='lines', fill='tozeroy', name='SO2 (mg/Nm³)', line=dict(color='orange')))
-    fig.add_trace(go.Scatter(x=df["Heure"], y=df["NOx_mg"], mode='lines', name='NOx (mg/Nm³)', line=dict(color='purple')))
-    fig.update_layout(title="Surveillance des émissions gazeuses continues", xaxis_title="Temps", yaxis_title="Concentration (mg/Nm³)", template="plotly_white")
-    st.plotly_chart(fig, use_container_width=True)
+# ==============================================================================
+# VISUALISATION GRAPHIQUE
+# ==============================================================================
+st.markdown("### Analyse de l'évolution du CO")
 
-# ==========================================
-# Logique de rafraîchissement automatique
-# ==========================================
+fig = go.Figure()
+
+# Courbe CO
+fig.add_trace(go.Scatter(
+    x=df["Heure"], 
+    y=df["CO_ppm"], 
+    mode='lines', 
+    name='Concentration CO (ppm)', 
+    line=dict(color='red', width=3)
+))
+
+# Axes secondaires pour la tension et le courant (si besoin de corrélation)
+fig.update_layout(
+    title="Évolution de la concentration de CO (Risque Explosif)",
+    xaxis_title="Temps",
+    yaxis_title="Concentration CO (ppm)",
+    template="plotly_white"
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
+# Graphique de corrélation Tension/Courant
+fig_corr = go.Figure()
+fig_corr.add_trace(go.Scatter(x=df["Tension_kV"], y=df["Courant_mA"], mode='markers', name='Corrélation I-V'))
+fig_corr.update_layout(
+    title="Corrélation Tension (kV) / Courant (mA)",
+    xaxis_title="Tension (kV)",
+    yaxis_title="Courant (mA)",
+    template="plotly_white"
+)
+st.plotly_chart(fig_corr, use_container_width=True)
+
+# ==============================================================================
+# RAFRAÎCHISSEMENT
+# ==============================================================================
 if auto_refresh:
     time.sleep(2) 
     st.rerun()

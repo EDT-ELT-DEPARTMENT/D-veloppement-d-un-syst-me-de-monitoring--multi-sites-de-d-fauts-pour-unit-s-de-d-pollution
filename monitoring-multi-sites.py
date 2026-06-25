@@ -1,114 +1,98 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
-import time
-from datetime import datetime, timedelta
+from plotly.subplots import make_subplots
 
 # ==============================================================================
 # CONFIGURATION DE LA PLATEFORME
 # ==============================================================================
 st.set_page_config(
-    page_title="Monitoring Sécurité CO", 
-    page_icon="⚠️", 
+    page_title="Monitoring Industriel - Performance Réacteur", 
+    page_icon="⚡", 
     layout="wide"
 )
 
-# ==============================================================================
-# GÉNÉRATION DES DONNÉES (Simulation Temps Réel)
-# ==============================================================================
-def get_sensor_data(site_type, points=50):
-    """Génère des données centrées sur la sécurité : Tension, Courant, CO."""
-    times = [datetime.now() - timedelta(minutes=i) for i in range(points, 0, -1)]
-    
-    if site_type == "Cimenterie":
-        # Paramètres pour Cimenterie (Filtrage électrostatique)
-        tension = np.random.normal(50, 2, points)      # kV
-        courant = np.random.normal(800, 50, points)    # mA
-        co_ppm = np.random.normal(25, 2, points)       # ppm (Concentration CO)
-        
-    else: # Installation Pétrolière
-        # Paramètres pour Pétrolier (Réacteur Plasma)
-        tension = np.random.normal(7, 1.5, points)     # kV
-        courant = np.random.normal(6, 2, points)       # mA
-        co_ppm = np.random.normal(600, 50, points)     # ppm (Concentration CO)
-        
-    return pd.DataFrame({
-        "Heure": times,
-        "Tension_kV": tension,
-        "Courant_mA": courant,
-        "CO_ppm": co_ppm
-    })
-
-# ==============================================================================
-# INTERFACE UTILISATEUR
-# ==============================================================================
-st.title("Supervision Sécurité Gaz : Monitoring du CO")
+st.title("Plateforme de Monitoring : Performance et Sécurité Gaz")
 st.markdown("---")
 
-# Sidebar
-st.sidebar.title("Paramètres de Monitoring")
-site_selection = st.sidebar.selectbox(
-    "Sélectionnez le site à surveiller :", 
-    ["Cimenterie", "Installation Pétrolière"]
-)
-auto_refresh = st.sidebar.checkbox("Activer le rafraîchissement temps réel", value=False)
+# ==============================================================================
+# DONNÉES EXPÉRIMENTALES (Vos mesures)
+# ==============================================================================
+# Ces données sont utilisées pour l'Installation Pétrolière
+data_petroliere = pd.DataFrame({
+    "Tension (kV)": [2, 4, 6, 8, 10],
+    "Capteur CO (ppm)": [800, 780, 700, 650, 480],
+    "Courant de décharge (mA)": [0.48, 1.87, 5.20, 8.90, 10.45]
+})
 
-# Récupération des données
-df = get_sensor_data(site_selection)
+# Données pour la Cimenterie (Basées sur un modèle similaire pour le monitoring)
+data_cimenterie = pd.DataFrame({
+    "Tension (kV)": [2, 4, 6, 8, 10],
+    "Capteur CO (ppm)": [850, 820, 750, 680, 520],
+    "Courant de décharge (mA)": [0.40, 1.50, 4.80, 8.20, 9.90]
+})
+
+# ==============================================================================
+# SIDEBAR
+# ==============================================================================
+st.sidebar.title("Paramètres")
+site_selection = st.sidebar.selectbox("Sélectionnez le site :", ["Installation Pétrolière", "Cimenterie"])
+
+# ==============================================================================
+# LOGIQUE D'AFFICHAGE
+# ==============================================================================
+
+# Sélection du jeu de données selon le site
+df = data_petroliere if site_selection == "Installation Pétrolière" else data_cimenterie
+
+st.header(f"Suivi Technique : {site_selection}")
+
+# Affichage des KPIs (Dernière valeur enregistrée)
 latest = df.iloc[-1]
-
-# ==============================================================================
-# KPIs (Indicateurs de Performance)
-# ==============================================================================
-st.subheader(f"État actuel : {site_selection}")
-
-# Affichage des 3 métriques critiques
 col1, col2, col3 = st.columns(3)
-col1.metric("Tension Appliquée", f"{latest['Tension_kV']:.1f} kV")
-col2.metric("Courant de Décharge", f"{latest['Courant_mA']:.1f} mA")
-col3.metric("Concentration CO", f"{latest['CO_ppm']:.1f} ppm", delta="ALERTE" if latest['CO_ppm'] > 750 else "Normal", delta_color="inverse")
+col1.metric("Tension Appliquée", f"{latest['Tension (kV)']} kV")
+col2.metric("Courant de Décharge", f"{latest['Courant de décharge (mA)']} mA")
+col3.metric("Concentration CO", f"{latest['Capteur CO (ppm)']} ppm", delta="Optimal" if latest['Capteur CO (ppm)'] < 500 else "Alerte", delta_color="inverse")
 
-# ==============================================================================
-# VISUALISATION GRAPHIQUE
-# ==============================================================================
-st.markdown("### Analyse de l'évolution du CO")
+# Mise en page : Tableau à gauche, Graphique à droite
+col_gauche, col_droite = st.columns([1, 2])
 
-fig = go.Figure()
+with col_gauche:
+    st.subheader("Données de mesures")
+    st.dataframe(df, hide_index=True, use_container_width=True)
+    
+    st.markdown("""
+    **Analyse :** La corrélation entre la tension et la baisse du CO montre l'efficacité de la décharge couronne. 
+    À 10 kV, le courant de décharge est maximal, ce qui correspond au point de traitement le plus efficace pour l'oxydation du CO.
+    """)
 
-# Courbe CO
-fig.add_trace(go.Scatter(
-    x=df["Heure"], 
-    y=df["CO_ppm"], 
-    mode='lines', 
-    name='Concentration CO (ppm)', 
-    line=dict(color='red', width=3)
-))
-
-# Axes secondaires pour la tension et le courant (si besoin de corrélation)
-fig.update_layout(
-    title="Évolution de la concentration de CO (Risque Explosif)",
-    xaxis_title="Temps",
-    yaxis_title="Concentration CO (ppm)",
-    template="plotly_white"
-)
-
-st.plotly_chart(fig, use_container_width=True)
-
-# Graphique de corrélation Tension/Courant
-fig_corr = go.Figure()
-fig_corr.add_trace(go.Scatter(x=df["Tension_kV"], y=df["Courant_mA"], mode='markers', name='Corrélation I-V'))
-fig_corr.update_layout(
-    title="Corrélation Tension (kV) / Courant (mA)",
-    xaxis_title="Tension (kV)",
-    yaxis_title="Courant (mA)",
-    template="plotly_white"
-)
-st.plotly_chart(fig_corr, use_container_width=True)
-
-# ==============================================================================
-# RAFRAÎCHISSEMENT
-# ==============================================================================
-if auto_refresh:
-    time.sleep(2) 
-    st.rerun()
+with col_droite:
+    st.subheader("Corrélation Tension / Courant / Concentration CO")
+    
+    # Création du graphique à double axe (Y1: Courant, Y2: CO)
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    
+    # Trace Courant
+    fig.add_trace(
+        go.Scatter(x=df["Tension (kV)"], y=df["Courant de décharge (mA)"], 
+                   name="Courant (mA)", line=dict(color="orange", width=4), mode='lines+markers'),
+        secondary_y=False
+    )
+    
+    # Trace CO
+    fig.add_trace(
+        go.Scatter(x=df["Tension (kV)"], y=df["Capteur CO (ppm)"], 
+                   name="CO (ppm)", line=dict(color="red", width=4), mode='lines+markers'),
+        secondary_y=True
+    )
+    
+    fig.update_layout(
+        xaxis_title="Tension Appliquée (kV)",
+        template="plotly_white",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    
+    fig.update_yaxes(title_text="Courant de décharge (mA)", secondary_y=False)
+    fig.update_yaxes(title_text="Concentration CO (ppm)", secondary_y=True)
+    
+    st.plotly_chart(fig, use_container_width=True)

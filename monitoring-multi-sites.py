@@ -30,13 +30,15 @@ st.title("Plateforme de Monitoring Multi-Sites et de Diagnostic de Défauts pour
 st.markdown("---")
 
 # ==============================================================================
-# INITIALISATION DES DONNÉES (Session State)
+# INITIALISATION SÉCURISÉE DES DONNÉES
 # ==============================================================================
 if 'data_history' not in st.session_state:
     st.session_state.data_history = pd.DataFrame(columns=["Temps", "Tension", "CO", "Courant"])
-    st.session_state.step = 0 # Compteur pour la dynamique fluide
 
-# Modèles mathématiques basés sur les données réelles
+if 'step' not in st.session_state:
+    st.session_state.step = 0.0
+
+# Modèles mathématiques
 V_ref = np.array([2.0, 4.0, 6.0, 8.0, 10.0])
 CO_ref = np.array([800.0, 780.0, 700.0, 650.0, 480.0])
 I_ref = np.array([0.48, 1.87, 5.20, 8.90, 10.45])

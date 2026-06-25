@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 import time
 from datetime import datetime
 
@@ -43,7 +44,7 @@ active_monitoring = st.sidebar.checkbox("Démarrer le monitoring en temps réel"
 # LOGIQUE DE SIMULATION DYNAMIQUE
 # ==============================================================================
 if active_monitoring:
-    # Fluctuations de 2% sur la tension pour simuler un fonctionnement réel
+    # Fluctuations de 2% sur la tension
     fluctuation = np.random.uniform(-0.02, 0.02)
     tension_instantanee = v_consigne * (1 + fluctuation)
     
@@ -92,13 +93,12 @@ col3.metric("Tension actuelle", f"{val_v:.2f} kV")
 st.markdown("---")
 
 # ==============================================================================
-# LIGNE 2 : RISQUE HUMAIN (TABLEAU DES SEUILS) ET JAUGE
+# LIGNE 2 : RISQUE HUMAIN (TABLEAU) ET JAUGE
 # ==============================================================================
 col_data, col_gauge = st.columns([1, 1])
 
 with col_data:
     st.subheader("⚠️ Évaluation du Risque pour l'Être Humain")
-    # Table intégrée avec vos données spécifiques
     df_toxicite = pd.DataFrame({
         "Concentration (ppm)": ["< 50", "100 - 200", "400 - 600", "800"],
         "Risque / Effet sur la santé": [
@@ -134,62 +134,55 @@ with col_gauge:
     st.plotly_chart(fig_gauge, use_container_width=True)
 
 # ==============================================================================
-# LIGNE 3 : RISQUE D'EXPLOSION
+# LIGNE 3 : SIMULATION PHYSIQUE ET RISQUE D'EXPLOSION
 # ==============================================================================
-st.subheader("Évaluation du Risque d'Explosion")
-# Calcul basé sur la LIE du CO = 125 000 ppm
-risque_expl = (val_co / 125000) * 100
+col_expl, col_field = st.columns([1, 1])
 
-if risque_expl < 0.5:
-    couleur_exp = "#2ecc71" # Vert
-    txt_exp = "RISQUE NÉGLIGEABLE (LIE < 0.5%)"
-elif risque_expl < 1.0:
-    couleur_exp = "#f1c40f" # Jaune
-    txt_exp = "RISQUE FAIBLE"
-else:
-    couleur_exp = "#e74c3c" # Rouge
-    txt_exp = "DANGER IMMÉDIAT"
+with col_expl:
+    st.subheader("Évaluation du Risque d'Explosion")
+    risque_expl = (val_co / 125000) * 100
+    if risque_expl < 0.5:
+        couleur_exp = "#2ecc71"
+        txt_exp = "RISQUE NÉGLIGEABLE (LIE < 0.5%)"
+    elif risque_expl < 1.0:
+        couleur_exp = "#f1c40f"
+        txt_exp = "RISQUE FAIBLE"
+    else:
+        couleur_exp = "#e74c3c"
+        txt_exp = "DANGER IMMÉDIAT"
 
-st.markdown(f"""
-<div style="background-color: {couleur_exp}; padding: 20px; border-radius: 10px; color: white; text-align: center;">
-    <h2 style="color: white;">{txt_exp}</h2>
-    <p style="font-size: 18px;">Taux de LIE atteint : {risque_expl:.4f}%</p>
-</div>
-""", unsafe_allow_html=True)
-import numpy as np
-import matplotlib.pyplot as plt
+    st.markdown(f"""
+    <div style="background-color: {couleur_exp}; padding: 20px; border-radius: 10px; color: white; text-align: center;">
+        <h2 style="color: white;">{txt_exp}</h2>
+        <p style="font-size: 18px;">Taux de LIE atteint : {risque_expl:.4f}%</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# Configuration de la grille de simulation
-N = 100
-x = np.linspace(-2, 2, N)
-y = np.linspace(0, 2, N)
-X, Y = np.meshgrid(x, y)
+with col_field:
+    st.subheader("Simulation Champ Électrique")
+    # Simulation
+    N = 100
+    x = np.linspace(-2, 2, N)
+    y = np.linspace(0, 2, N)
+    X, Y = np.meshgrid(x, y)
+    x_p, y_p = 0, 1.8
+    y_plate = 0.2
+    R = np.sqrt((X - x_p)**2 + (Y - y_p)**2)
+    V = 1 / R
+    Ex, Ey = np.gradient(-V)
+    
+    # Création du plot
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.streamplot(X, Y, Ex, Ey, color=np.log(Ex**2 + Ey**2), cmap='inferno', density=1.5)
+    ax.axhline(y_plate, color='black', linewidth=3, label='Plan')
+    ax.scatter(x_p, y_p, color='red', s=100, label='Pointe')
+    ax.set_title("Pointe-Plan")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+    
+    # Affichage dans Streamlit
+    st.pyplot(fig)
 
-# Position de l'électrode pointue (au centre en haut)
-x_p, y_p = 0, 1.8
-# Position de la plaque (en bas)
-y_plate = 0.2
-
-# Calcul du potentiel V (Modèle simplifié)
-# V = 1/r (approximation pour une pointe)
-R = np.sqrt((X - x_p)**2 + (Y - y_p)**2)
-V = 1 / R
-
-# Calcul du champ électrique E = -grad(V)
-Ex, Ey = np.gradient(-V)
-
-# Visualisation
-plt.figure(figsize=(10, 6))
-plt.streamplot(X, Y, Ex, Ey, color=np.log(Ex**2 + Ey**2), cmap='inferno', density=1.5)
-plt.axhline(y_plate, color='black', linewidth=3, label='Électrode plan (Mise à la terre)')
-plt.scatter(x_p, y_p, color='red', s=100, label='Pointe (Haute Tension)')
-
-plt.title("Simulation du Champ Électrique (Pointe-Plan)")
-plt.xlabel("Position X")
-plt.ylabel("Position Y")
-plt.legend()
-plt.colorbar(label='Intensité du champ (log)')
-plt.show()
 # ==============================================================================
 # LIGNE 4 : COURBES HISTORIQUES
 # ==============================================================================

@@ -38,7 +38,7 @@ active_monitoring = st.sidebar.checkbox("Démarrer le monitoring en temps réel"
 
 # Si le monitoring est actif, nous générons une nouvelle mesure
 if active_monitoring:
-    # 1. Calcul de la tension avec fluctuation de 2% (Bruit blanc)
+    # 1. Calcul de la tension avec fluctuation de 2% (Bruit aléatoire)
     fluctuation = np.random.uniform(-0.02, 0.02)
     tension_instantanee = v_consigne * (1 + fluctuation)
     
@@ -59,17 +59,34 @@ if active_monitoring:
         pd.DataFrame([new_data])
     ], ignore_index=True)
     
-    # Garder seulement les 50 dernières mesures pour la lisibilité
+    # Garder seulement les 50 dernières mesures
     if len(st.session_state.data_history) > 50:
         st.session_state.data_history = st.session_state.data_history.iloc[-50:]
 
 # ==============================================================================
-# AFFICHAGE DE L'INTERFACE
+# AFFICHAGE DES AFFICHEURS NUMÉRIQUES (METRICS)
+# ==============================================================================
+st.subheader("Indicateurs Temps Réel")
+col_met1, col_met2, col_met3 = st.columns(3)
+
+# Valeurs par défaut si pas de données
+val_co = st.session_state.data_history["CO"].iloc[-1] if not st.session_state.data_history.empty else 0
+val_i = st.session_state.data_history["Courant"].iloc[-1] if not st.session_state.data_history.empty else 0
+val_v = st.session_state.data_history["Tension"].iloc[-1] if not st.session_state.data_history.empty else v_consigne
+
+col_met1.metric("Concentration CO", f"{val_co:.1f} ppm")
+col_met2.metric("Courant de Décharge", f"{val_i:.2f} mA")
+col_met3.metric("Tension Actuelle", f"{val_v:.2f} kV")
+
+st.markdown("---")
+
+# ==============================================================================
+# AFFICHAGE DES COURBES
 # ==============================================================================
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Concentration CO (ppm)")
+    st.subheader("Historique Concentration CO (ppm)")
     fig_co = go.Figure()
     if not st.session_state.data_history.empty:
         fig_co.add_trace(go.Scatter(
@@ -83,7 +100,7 @@ with col1:
     st.plotly_chart(fig_co, use_container_width=True)
 
 with col2:
-    st.subheader("Courant de décharge (mA)")
+    st.subheader("Historique Courant (mA)")
     fig_i = go.Figure()
     if not st.session_state.data_history.empty:
         fig_i.add_trace(go.Scatter(
@@ -100,7 +117,7 @@ with col2:
 # RAFRAÎCHISSEMENT AUTOMATIQUE
 # ==============================================================================
 if active_monitoring:
-    time.sleep(0.5) # Vitesse de rafraîchissement (0.5 secondes)
+    time.sleep(0.5) 
     st.rerun()
 else:
     st.info("Activez le monitoring dans la barre latérale pour démarrer.")

@@ -8,9 +8,8 @@ from datetime import datetime
 # ==============================================================================
 # CONFIGURATION DE LA PLATEFORME
 # ==============================================================================
-# Titre obligatoire : Plateforme de Monitoring Multi-Sites et de Diagnostic de Défauts pour Unités de Dépollution Atmosphérique
 st.set_page_config(
-    page_title="Plateforme de Monitoring Multi-Sites et de Diagnostic de Défauts pour Unités de Dépollution Atmosphérique", 
+    page_title="Plateforme de Monitoring Multi-Sites", 
     layout="wide",
     page_icon="⚡"
 )
@@ -44,7 +43,7 @@ active_monitoring = st.sidebar.checkbox("Démarrer le monitoring en temps réel"
 # LOGIQUE DE SIMULATION DYNAMIQUE
 # ==============================================================================
 if active_monitoring:
-    # Fluctuations de 2% sur la tension
+    # Fluctuations de 2% sur la tension pour simuler un fonctionnement réel
     fluctuation = np.random.uniform(-0.02, 0.02)
     tension_instantanee = v_consigne * (1 + fluctuation)
     
@@ -83,7 +82,7 @@ else:
     val_v = v_consigne
 
 # ==============================================================================
-# LIGNE 1 : INDICATEURS NUMÉRIQUES
+# LIGNE 1 : INDICATEURS NUMÉRIQUES (KPI)
 # ==============================================================================
 col1, col2, col3 = st.columns(3)
 col1.metric("Concentration CO", f"{val_co:.1f} ppm")
@@ -93,13 +92,13 @@ col3.metric("Tension actuelle", f"{val_v:.2f} kV")
 st.markdown("---")
 
 # ==============================================================================
-# LIGNE 2 : RISQUE HUMAIN ET JAUGE DE TOXICITÉ
+# LIGNE 2 : RISQUE HUMAIN (TABLEAU DES SEUILS) ET JAUGE
 # ==============================================================================
 col_data, col_gauge = st.columns([1, 1])
 
 with col_data:
     st.subheader("⚠️ Évaluation du Risque pour l'Être Humain")
-    # Données de toxicité utilisateur
+    # Table intégrée avec vos données spécifiques
     df_toxicite = pd.DataFrame({
         "Concentration (ppm)": ["< 50", "100 - 200", "400 - 600", "800"],
         "Risque / Effet sur la santé": [

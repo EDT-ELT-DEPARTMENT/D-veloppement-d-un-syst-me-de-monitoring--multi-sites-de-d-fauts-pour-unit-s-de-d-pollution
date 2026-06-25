@@ -8,54 +8,81 @@ from datetime import datetime, timedelta
 # ==========================================
 # Configuration de la page
 # ==========================================
-st.set_page_config(page_title="Monitoring Multi-Sites | Dépollution", page_icon="🏭", layout="wide")
+st.set_page_config(
+    page_title="Monitoring Multi-Sites | Dépollution", 
+    page_icon="🏭", 
+    layout="wide"
+)
 
 # ==========================================
-# Fonctions de simulation de données (Remplacer par flux MQTT/IoT)
+# Initialisation de l'état des données
 # ==========================================
-def generate_sensor_data(site_type, points=50):
-    """Simule les données des capteurs pour les unités de dépollution."""
+if 'data_cimenterie' not in st.session_state:
+    st.session_state.data_cimenterie = None
+
+if 'data_petroliere' not in st.session_state:
+    st.session_state.data_petroliere = None
+
+# ==========================================
+# Fonctions de gestion des données
+# ==========================================
+def update_sensor_data(site_type):
+    """Génère ou met à jour les données des capteurs."""
+    points = 50
     times = [datetime.now() - timedelta(minutes=i) for i in range(points, 0, -1)]
     
     if site_type == "Cimenterie":
-        # Paramètres pour un électrofiltre et émissions
-        tension = np.random.normal(50, 2, points) # kV
-        courant = np.random.normal(800, 50, points) # mA
-        poussieres = np.random.normal(15, 3, points) # mg/Nm3 (Limite ~20)
-        return pd.DataFrame({"Heure": times, "Tension_kV": tension, "Courant_mA": courant, "Poussieres_mg": poussieres})
+        tension = np.random.normal(50, 2, points)
+        courant = np.random.normal(800, 50, points)
+        poussieres = np.random.normal(15, 3, points)
+        return pd.DataFrame({
+            "Heure": times, 
+            "Tension_kV": tension, 
+            "Courant_mA": courant, 
+            "Poussieres_mg": poussieres
+        })
         
     elif site_type == "Installation Pétrolière":
-        # Paramètres pour une unité de désulfuration / laveur de gaz
-        debit_gaz = np.random.normal(15000, 500, points) # m3/h
-        so2 = np.random.normal(45, 5, points) # mg/Nm3 (Limite ~50)
-        nox = np.random.normal(180, 10, points) # mg/Nm3 (Limite ~200)
-        return pd.DataFrame({"Heure": times, "Debit_m3h": debit_gaz, "SO2_mg": so2, "NOx_mg": nox})
+        debit_gaz = np.random.normal(15000, 500, points)
+        so2 = np.random.normal(45, 5, points)
+        nox = np.random.normal(180, 10, points)
+        return pd.DataFrame({
+            "Heure": times, 
+            "Debit_m3h": debit_gaz, 
+            "SO2_mg": so2, 
+            "NOx_mg": nox
+        })
 
 # ==========================================
 # Interface Utilisateur (Sidebar)
 # ==========================================
 st.sidebar.title("Paramètres de Monitoring")
-site_selection = st.sidebar.selectbox("Sélectionnez le site à surveiller :", ["Cimenterie", "Installation Pétrolière"])
+site_selection = st.sidebar.selectbox(
+    "Sélectionnez le site à surveiller :", 
+    ["Cimenterie", "Installation Pétrolière"]
+)
 auto_refresh = st.sidebar.checkbox("Activer le rafraîchissement temps réel", value=False)
 
 st.title(f"Supervision de l'Unité de Dépollution : {site_selection}")
 st.markdown("---")
 
 # ==========================================
-# Affichage Cimenterie
+# Logique d'affichage
 # ==========================================
+
+# Affichage Cimenterie
 if site_selection == "Cimenterie":
     st.subheader("État de l'Électrofiltre (Filtre à particules)")
     
-    # Génération des données
-    df = generate_sensor_data("Cimenterie")
+    # Mise à jour des données
+    df = update_sensor_data("Cimenterie")
     latest = df.iloc[-1]
     
     # Métriques principales (KPIs)
     col1, col2, col3 = st.columns(3)
-    col1.metric("Tension Haute Tension", f"{latest['Tension_kV']:.1f} kV", delta="-0.5 kV" if latest['Tension_kV'] < 48 else "OK", delta_color="inverse")
+    col1.metric("Tension Haute Tension", f"{latest['Tension_kV']:.1f} kV")
     col2.metric("Courant de Décharge", f"{latest['Courant_mA']:.0f} mA")
-    col3.metric("Émission Particules Fines", f"{latest['Poussieres_mg']:.1f} mg/Nm³", delta="+2.1 mg" if latest['Poussieres_mg'] > 18 else "-0.3 mg", delta_color="inverse")
+    col3.metric("Émission Particules Fines", f"{latest['Poussieres_mg']:.1f} mg/Nm³")
     
     # Graphique d'évolution
     fig = go.Figure()
@@ -64,20 +91,18 @@ if site_selection == "Cimenterie":
     fig.update_layout(title="Évolution des paramètres opératoires et des rejets", xaxis_title="Temps", yaxis_title="Valeurs", template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
 
-# ==========================================
 # Affichage Installation Pétrolière
-# ==========================================
 elif site_selection == "Installation Pétrolière":
     st.subheader("Unité de Traitement des Gaz (Désulfuration & DeNOx)")
     
-    # Génération des données
-    df = generate_sensor_data("Installation Pétrolière")
+    # Mise à jour des données
+    df = update_sensor_data("Installation Pétrolière")
     latest = df.iloc[-1]
     
     # Métriques principales (KPIs)
     col1, col2, col3 = st.columns(3)
     col1.metric("Débit des Gaz", f"{latest['Debit_m3h']:.0f} m³/h")
-    col2.metric("Émission SO2", f"{latest['SO2_mg']:.1f} mg/Nm³", delta="Alerte Haute" if latest['SO2_mg'] > 48 else "Normale", delta_color="inverse")
+    col2.metric("Émission SO2", f"{latest['SO2_mg']:.1f} mg/Nm³")
     col3.metric("Émission NOx", f"{latest['NOx_mg']:.1f} mg/Nm³")
     
     # Graphique d'évolution
@@ -88,8 +113,8 @@ elif site_selection == "Installation Pétrolière":
     st.plotly_chart(fig, use_container_width=True)
 
 # ==========================================
-# Logique de rafraîchissement
+# Logique de rafraîchissement automatique
 # ==========================================
 if auto_refresh:
-    time.sleep(2) # Simule un délai de réception MQTT
+    time.sleep(2) 
     st.rerun()

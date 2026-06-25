@@ -4,93 +4,117 @@ import numpy as np
 import plotly.graph_objects as go
 import time
 from datetime import datetime, timedelta
-from scipy.interpolate import PchipInterpolator
 
-# ==============================================================================
-# Titre du Projet : Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA
-# ==============================================================================
-
+# ==========================================
 # Configuration de la page
+# ==========================================
 st.set_page_config(
-    page_title="Plateforme de gestion des EDTs-S2-2026", 
-    page_icon="⚡", 
+    page_title="Monitoring Multi-Sites | Dépollution", 
+    page_icon="🏭", 
     layout="wide"
 )
 
-# Initialisation de l'état pour les données
-if 'data_history' not in st.session_state:
-    st.session_state.data_history = pd.DataFrame(columns=["Heure", "Gaz_ADC", "Courant_mA", "Tension_kV"])
+# ==========================================
+# Initialisation de l'état des données
+# ==========================================
+if 'data_cimenterie' not in st.session_state:
+    st.session_state.data_cimenterie = None
 
-# ==============================================================================
-# Fonctions de modélisation physique
-# ==============================================================================
+if 'data_petroliere' not in st.session_state:
+    st.session_state.data_petroliere = None
 
-def get_caracteristique_iv_modele():
-    """Définit le modèle de la caractéristique I-V du réacteur fil-cylindre."""
-    tensions_exp = np.array([2.0, 4.0, 6.0, 8.0, 10.0])
-    courants_exp = np.array([0.48, 1.87, 5.20, 8.90, 10.45])
-    return PchipInterpolator(tensions_exp, courants_exp)
-
-def afficher_caracteristique_iv():
-    """Affiche la signature électrique (I-V) du filtre."""
-    st.subheader("Caractéristique Électrique (I-V) du Réacteur")
+# ==========================================
+# Fonctions de gestion des données
+# ==========================================
+def update_sensor_data(site_type):
+    """Génère ou met à jour les données des capteurs."""
+    points = 50
+    times = [datetime.now() - timedelta(minutes=i) for i in range(points, 0, -1)]
     
-    tensions_kv = [2.0, 4.0, 6.0, 8.0, 10.0]
-    courants_ma = [0.48, 1.87, 5.20, 8.90, 10.45]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=tensions_kv, 
-        y=courants_ma, 
-        mode='lines+markers',
-        name='Courbe I-V Expérimentale',
-        line=dict(color='#00F2FF', width=3),
-        marker=dict(size=10)
-    ))
-    
-    fig.update_layout(
-        title="Signature électrique du filtre cylindrique (100mm x 100mm)",
-        xaxis_title="Tension (kV)",
-        yaxis_title="Courant de décharge (mA)",
-        template="plotly_dark"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if site_type == "Cimenterie":
+        tension = np.random.normal(50, 2, points)
+        courant = np.random.normal(800, 50, points)
+        poussieres = np.random.normal(15, 3, points)
+        return pd.DataFrame({
+            "Heure": times, 
+            "Tension_kV": tension, 
+            "Courant_mA": courant, 
+            "Poussieres_mg": poussieres
+        })
+        
+    elif site_type == "Installation Pétrolière":
+        debit_gaz = np.random.normal(15000, 500, points)
+        so2 = np.random.normal(45, 5, points)
+        nox = np.random.normal(180, 10, points)
+        return pd.DataFrame({
+            "Heure": times, 
+            "Debit_m3h": debit_gaz, 
+            "SO2_mg": so2, 
+            "NOx_mg": nox
+        })
 
-# ==============================================================================
-# Interface Principale
-# ==============================================================================
+# ==========================================
+# Interface Utilisateur (Sidebar)
+# ==========================================
+st.sidebar.title("Paramètres de Monitoring")
+site_selection = st.sidebar.selectbox(
+    "Sélectionnez le site à surveiller :", 
+    ["Cimenterie", "Installation Pétrolière"]
+)
+auto_refresh = st.sidebar.checkbox("Activer le rafraîchissement temps réel", value=False)
 
-st.title("Plateforme de gestion des EDTs-S2-2026-Département d'Électrotechnique-Faculté de génie électrique-UDL-SBA")
+st.title(f"Supervision de l'Unité de Dépollution : {site_selection}")
 st.markdown("---")
 
-# Sidebar pour les paramètres
-st.sidebar.title("Configuration")
-auto_refresh = st.sidebar.checkbox("Activer le rafraîchissement temps réel", value=True)
+# ==========================================
+# Logique d'affichage
+# ==========================================
 
-# Dispositions des éléments
-col_gauche, col_droite = st.columns([1, 1])
+# Affichage Cimenterie
+if site_selection == "Cimenterie":
+    st.subheader("État de l'Électrofiltre (Filtre à particules)")
+    
+    # Mise à jour des données
+    df = update_sensor_data("Cimenterie")
+    latest = df.iloc[-1]
+    
+    # Métriques principales (KPIs)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Tension Haute Tension", f"{latest['Tension_kV']:.1f} kV")
+    col2.metric("Courant de Décharge", f"{latest['Courant_mA']:.0f} mA")
+    col3.metric("Émission Particules Fines", f"{latest['Poussieres_mg']:.1f} mg/Nm³")
+    
+    # Graphique d'évolution
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["Heure"], y=df["Poussieres_mg"], mode='lines+markers', name='Poussières (mg/Nm³)', line=dict(color='red')))
+    fig.add_trace(go.Scatter(x=df["Heure"], y=df["Tension_kV"], mode='lines', name='Tension (kV)', line=dict(color='blue', dash='dot')))
+    fig.update_layout(title="Évolution des paramètres opératoires et des rejets", xaxis_title="Temps", yaxis_title="Valeurs", template="plotly_white")
+    st.plotly_chart(fig, use_container_width=True)
 
-with col_gauche:
-    st.subheader("Monitoring des paramètres")
-    # Simulation des données (à remplacer par la lecture série Arduino)
-    # Disposition demandée : Enseignements, Code, Enseignants, Horaire, Jours, Lieu, Promotion
-    data_table = pd.DataFrame({
-        "Enseignements": ["Stabilité Réseaux", "Éclairage LED", "Intelligence Artificielle"],
-        "Code": ["SDRE", "LEDPA", "TIA"],
-        "Enseignants": ["REZ", "Bermaki", "Touhami"],
-        "Horaire": ["8h-9h30", "9h30-11h", "9h30-11h"],
-        "Jours": ["Dimanche", "Dimanche", "Lundi"],
-        "Lieu": ["S06", "S06", "S06"],
-        "Promotion": ["M2RE", "M2RE", "M2RE"]
-    })
-    st.table(data_table)
+# Affichage Installation Pétrolière
+elif site_selection == "Installation Pétrolière":
+    st.subheader("Unité de Traitement des Gaz (Désulfuration & DeNOx)")
+    
+    # Mise à jour des données
+    df = update_sensor_data("Installation Pétrolière")
+    latest = df.iloc[-1]
+    
+    # Métriques principales (KPIs)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Débit des Gaz", f"{latest['Debit_m3h']:.0f} m³/h")
+    col2.metric("Émission SO2", f"{latest['SO2_mg']:.1f} mg/Nm³")
+    col3.metric("Émission NOx", f"{latest['NOx_mg']:.1f} mg/Nm³")
+    
+    # Graphique d'évolution
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["Heure"], y=df["SO2_mg"], mode='lines', fill='tozeroy', name='SO2 (mg/Nm³)', line=dict(color='orange')))
+    fig.add_trace(go.Scatter(x=df["Heure"], y=df["NOx_mg"], mode='lines', name='NOx (mg/Nm³)', line=dict(color='purple')))
+    fig.update_layout(title="Surveillance des émissions gazeuses continues", xaxis_title="Temps", yaxis_title="Concentration (mg/Nm³)", template="plotly_white")
+    st.plotly_chart(fig, use_container_width=True)
 
-with col_droite:
-    afficher_caracteristique_iv()
-
-# ==============================================================================
-# Logique de rafraîchissement
-# ==============================================================================
+# ==========================================
+# Logique de rafraîchissement automatique
+# ==========================================
 if auto_refresh:
-    time.sleep(2)
+    time.sleep(2) 
     st.rerun()

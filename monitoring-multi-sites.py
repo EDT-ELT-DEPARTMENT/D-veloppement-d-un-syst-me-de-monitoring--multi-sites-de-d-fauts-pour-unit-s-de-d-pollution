@@ -161,9 +161,6 @@ with col_field:
 # ==============================================================================
 # LIGNE 4 : COURBES HISTORIQUES
 # ==============================================================================
-# ==============================================================================
-# LIGNE 4 : COURBES HISTORIQUES (CORRIGÉE)
-# ==============================================================================
 st.markdown("---")
 col_graph1, col_graph2 = st.columns(2)
 
@@ -177,8 +174,7 @@ with col_graph1:
             mode='lines', name='CO (ppm)', line=dict(color='red', width=3)
         ))
     fig_co.update_layout(yaxis_range=[0, 1000], template="plotly_white")
-    # AJOUT DU KEY ICI
-    st.plotly_chart(fig_co, use_container_width=True, key="co_chart_key")
+    st.plotly_chart(fig_co, use_container_width=True, key="co_chart_dynamic")
 
 with col_graph2:
     st.subheader("Historique Courant (mA)")
@@ -190,5 +186,8 @@ with col_graph2:
             mode='lines', name='I (mA)', line=dict(color='orange', width=3)
         ))
     fig_i.update_layout(yaxis_range=[0, 15], template="plotly_white")
-    # AJOUT DU KEY ICI
-    st.plotly_chart(fig_i, use_container_width=True, key="current_chart_key")
+    st.plotly_chart(fig_i, use_container_width=True, key="current_chart_dynamic")
+
+if active_monitoring:
+    time.sleep(0.1) # Réduit à 0.1s pour plus de fluidité
+    st.rerun()

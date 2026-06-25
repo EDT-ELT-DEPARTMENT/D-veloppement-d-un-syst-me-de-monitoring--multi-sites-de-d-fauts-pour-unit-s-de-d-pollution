@@ -5,10 +5,7 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import time
 from datetime import datetime
-
-# ==============================================================================
-# CONFIGURATION ET MASQUAGE DU MENU
-# ==============================================================================
+# Masquer les éléments du menu supérieur (Share, Star, Edit, etc.)
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -19,9 +16,11 @@ hide_st_style = """
             </style>
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
-
+# ==============================================================================
+# CONFIGURATION DE LA PLATEFORME
+# ==============================================================================
 st.set_page_config(
-    page_title="Plateforme de Monitoring Multi-Sites et de Diagnostic de Défauts pour Unités de Dépollution Atmosphérique", 
+    page_title="Plateforme de Monitoring Multi-Sites", 
     layout="wide",
     page_icon="⚡"
 )
@@ -30,15 +29,12 @@ st.title("Plateforme de Monitoring Multi-Sites et de Diagnostic de Défauts pour
 st.markdown("---")
 
 # ==============================================================================
-# INITIALISATION SÉCURISÉE DES DONNÉES
+# INITIALISATION DES DONNÉES (Session State)
 # ==============================================================================
 if 'data_history' not in st.session_state:
     st.session_state.data_history = pd.DataFrame(columns=["Temps", "Tension", "CO", "Courant"])
 
-if 'step' not in st.session_state:
-    st.session_state.step = 0.0
-
-# Modèles mathématiques
+# Modèles mathématiques basés sur les données réelles
 V_ref = np.array([2.0, 4.0, 6.0, 8.0, 10.0])
 CO_ref = np.array([800.0, 780.0, 700.0, 650.0, 480.0])
 I_ref = np.array([0.48, 1.87, 5.20, 8.90, 10.45])
@@ -57,12 +53,8 @@ active_monitoring = st.sidebar.checkbox("Démarrer le monitoring en temps réel"
 # LOGIQUE DE SIMULATION DYNAMIQUE
 # ==============================================================================
 if active_monitoring:
-    st.session_state.step += 0.1
-    # Variation dynamique avec sinus + bruit pour un réalisme physique
-    oscillation = 0.05 * np.sin(st.session_state.step)
-    bruit = np.random.normal(0, 0.005)
-    tension_instantanee = v_consigne * (1 + oscillation + bruit)
-    
+    fluctuation = np.random.uniform(-0.02, 0.02)
+    tension_instantanee = v_consigne * (1 + fluctuation)
     co_instantane = max(0, model_co(tension_instantanee))
     i_instantane = max(0, model_i(tension_instantanee))
     
@@ -88,46 +80,51 @@ else:
     val_co, val_i, val_v = 0, 0, v_consigne
 
 # ==============================================================================
-# CRÉATION DES ONGLETS
+# LIGNE 1 : INDICATEURS NUMÉRIQUES
 # ==============================================================================
-tab_monitoring, tab_dispositif = st.tabs(["Monitoring Temps Réel", "Schéma du Dispositif"])
+col1, col2, col3 = st.columns(3)
+col1.metric("Concentration CO", f"{val_co:.1f} ppm")
+col2.metric("Courant de décharge", f"{val_i:.2f} mA")
+col3.metric("Tension actuelle", f"{val_v:.2f} kV")
 
-with tab_monitoring:
-    # LIGNE 1 : INDICATEURS NUMÉRIQUES
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Concentration CO", f"{val_co:.1f} ppm")
-    col2.metric("Courant de décharge", f"{val_i:.2f} mA")
-    col3.metric("Tension actuelle", f"{val_v:.2f} kV")
+st.markdown("---")
 
-    st.markdown("---")
+# ==============================================================================
+# LIGNE 2 : RISQUE HUMAIN ET JAUGE
+# ==============================================================================
+col_data, col_gauge = st.columns([1, 1])
 
-    # LIGNE 2 : RISQUE HUMAIN ET JAUGE
-    col_data, col_gauge = st.columns([1, 1])
-    with col_data:
-        st.subheader("⚠️ Évaluation du Risque pour l'Être Humain")
-        st.table(pd.DataFrame({
-            "Concentration CO (ppm)": ["< 50", "100 - 200", "400 - 600", "800"],
-            "Risque / Effet sur la santé": [
-                "Seuil limite d'exposition moyenne (8 heures).",
-                "Risque modéré : maux de tête, vertiges, essoufflement.",
-                "Danger grave : malaise, confusion mentale après 1h.",
-                "Mortel : perte de connaissance en moins de 1h, décès en 2-3h."
-            ]
-        }))
-    with col_gauge:
-        st.subheader("Jauge de Toxicité (ppm)")
-        fig_gauge = go.Figure(go.Indicator(
-            mode = "gauge+number", value = val_co,
-            gauge = {'axis': {'range': [0, 1000]}, 'steps': [
-                    {'range': [0, 50], 'color': "green"}, {'range': [50, 100], 'color': "lightgreen"},
-                    {'range': [100, 200], 'color': "yellow"}, {'range': [200, 400], 'color': "orange"},
-                    {'range': [400, 600], 'color': "red"}, {'range': [600, 1000], 'color': "darkred"}
-                ]}
-        ))
-        fig_gauge.update_layout(height=300)
-        st.plotly_chart(fig_gauge, use_container_width=True)
+with col_data:
+    st.subheader("⚠️ Évaluation du Risque pour l'Être Humain")
+    st.table(pd.DataFrame({
+        "Concentration Co (ppm)": ["< 50", "100 - 200", "400 - 600", "800"],
+        "Risque / Effet sur la santé": [
+            "Seuil limite d'exposition moyenne (8 heures).",
+            "Risque modéré : maux de tête, vertiges, essoufflement.",
+            "Danger grave : malaise, confusion mentale après 1h.",
+            "Mortel : perte de connaissance en moins de 1h, décès en 2-3h."
+        ]
+    }))
 
-    # LIGNE 3 : RISQUE D'EXPLOSION
+with col_gauge:
+    st.subheader("Jauge de Toxicité (ppm)")
+    fig_gauge = go.Figure(go.Indicator(
+        mode = "gauge+number", value = val_co,
+        gauge = {'axis': {'range': [0, 1000]}, 'steps': [
+                {'range': [0, 50], 'color': "green"}, {'range': [50, 100], 'color': "lightgreen"},
+                {'range': [100, 200], 'color': "yellow"}, {'range': [200, 400], 'color': "orange"},
+                {'range': [400, 600], 'color': "red"}, {'range': [600, 1000], 'color': "darkred"}
+            ]}
+    ))
+    fig_gauge.update_layout(height=300)
+    st.plotly_chart(fig_gauge, use_container_width=True)
+
+# ==============================================================================
+# LIGNE 3 : RISQUE D'EXPLOSION ET SIMULATION COAXIALE
+# ==============================================================================
+col_expl, col_field = st.columns([1, 1])
+
+with col_expl:
     st.subheader("Évaluation du Risque d'Explosion")
     risque_expl = (val_co / 125000) * 100
     color = "#e74c3c" if risque_expl >= 1.0 else ("#f1c40f" if risque_expl >= 0.5 else "#2ecc71")
@@ -138,60 +135,83 @@ with tab_monitoring:
     </div>
     """, unsafe_allow_html=True)
 
-    # LIGNE 4 : COURBES HISTORIQUES
-    st.markdown("---")
-    col_graph1, col_graph2 = st.columns(2)
-    with col_graph1:
-        st.subheader("Historique Concentration CO (ppm)")
-        fig_co = go.Figure()
-        if not st.session_state.data_history.empty:
-            fig_co.add_trace(go.Scatter(
-                x=st.session_state.data_history["Temps"], 
-                y=st.session_state.data_history["CO"], 
-                mode='lines', name='CO (ppm)', line=dict(color='#e74c3c', width=3)
-            ))
-        fig_co.update_layout(
-            yaxis_title="Concentration (ppm)", 
-            xaxis_title="Temps",
-            yaxis=dict(autorange=True, fixedrange=False, zeroline=True), 
-            template="plotly_white", 
-            hovermode="x unified"
-        )
-        st.plotly_chart(fig_co, use_container_width=True, key="co_chart_dyn")
-    with col_graph2:
-        st.subheader("Historique Courant (mA)")
-        fig_i = go.Figure()
-        if not st.session_state.data_history.empty:
-            fig_i.add_trace(go.Scatter(
-                x=st.session_state.data_history["Temps"], 
-                y=st.session_state.data_history["Courant"], 
-                mode='lines', name='I (mA)', line=dict(color='#f39c12', width=3)
-            ))
-        fig_i.update_layout(
-            yaxis_title="Courant de décharge (mA)", 
-            xaxis_title="Temps",
-            yaxis=dict(autorange=True, fixedrange=False, zeroline=True), 
-            template="plotly_white", 
-            hovermode="x unified"
-        )
-        st.plotly_chart(fig_i, use_container_width=True, key="cur_chart_dyn")
-
-with tab_dispositif:
-    st.header("Configuration Géométrique du Dispositif")
-    # Simulation graphique
-    fig_schema, ax = plt.subplots(figsize=(6, 6))
-    R, r0 = 50.0, 0.5 
-    circle = plt.Circle((0, 0), R, color='blue', fill=False, linewidth=3, label=f"Cylindre (R={R}mm)")
+with col_field:
+    st.subheader("Simulation Champ Électrique (Fil-Cylindre)")
+    # Simulation géométrie coaxiale
+    R, r0 = 50.0, 0.05 # mm
+    # Création d'une coupe transversale
+    x = np.linspace(-R, R, 200)
+    y = np.linspace(-R, R, 200)
+    X, Y = np.meshgrid(x, y)
+    r = np.sqrt(X**2 + Y**2)
+    # Champ électrique E = V / (r * ln(R/r0))
+    # On normalise avec V=1 pour visualiser la distribution
+    E = 1 / (r * np.log(R/r0))
+    E[r < r0] = np.nan # Cœur du fil
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    contour = ax.contourf(X, Y, E, levels=50, cmap='plasma')
+    circle = plt.Circle((0, 0), R, color='black', fill=False, linewidth=3)
     ax.add_artist(circle)
-    ax.scatter(0, 0, color='red', s=50, label=f"Fil (r={0.05}mm)")
-    ax.set_xlim(-R-10, R+10)
-    ax.set_ylim(-R-10, R+10)
-    ax.set_aspect('equal')
-    ax.set_title("Coupe transversale (Dimensions : R=50mm, r=0.05mm)")
-    ax.legend()
-    st.pyplot(fig_schema)
+    ax.scatter(0, 0, color='white', s=20)
+    ax.set_title(f"Coupe transversale (R={R}mm, r0={r0}mm)")
+    plt.colorbar(contour, label='Intensité relative du champ')
+    st.pyplot(fig)
 
-# RAFRAÎCHISSEMENT FINAL
+# ==============================================================================
+# LIGNE 4 : COURBES HISTORIQUES
+# ==============================================================================
+# ==============================================================================
+# LIGNE 4 : COURBES HISTORIQUES (OPTIMISÉES)
+# ==============================================================================
+# ==============================================================================
+# LIGNE 4 : COURBES HISTORIQUES (CORRIGÉES ET OPTIMISÉES)
+# ==============================================================================
+col_graph1, col_graph2 = st.columns(2)
+
+with col_graph1:
+    st.subheader("Historique Concentration Co (ppm)")
+    fig_co = go.Figure()
+    if not st.session_state.data_history.empty:
+        fig_co.add_trace(go.Scatter(
+            x=st.session_state.data_history["Temps"], 
+            y=st.session_state.data_history["CO"], 
+            mode='lines', name='CO (ppm)', line=dict(color='#e74c3c', width=3)
+        ))
+    
+    fig_co.update_layout(
+        yaxis_title="Concentration Co (ppm)",
+        xaxis_title="Temps",
+        yaxis=dict(autorange=True, fixedrange=False, zeroline=True),
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    # Clé unique pour éviter l'erreur DuplicateElementId
+    st.plotly_chart(fig_co, use_container_width=True, key="co_chart_dynamic")
+
+with col_graph2:
+    st.subheader("Historique Courant (mA)")
+    fig_i = go.Figure()
+    if not st.session_state.data_history.empty:
+        fig_i.add_trace(go.Scatter(
+            x=st.session_state.data_history["Temps"], 
+            y=st.session_state.data_history["Courant"], 
+            mode='lines', name='I (mA)', line=dict(color='#f39c12', width=3)
+        ))
+    
+    fig_i.update_layout(
+        yaxis_title="Courant de décharge (mA)",
+        xaxis_title="Temps",
+        yaxis=dict(autorange=True, fixedrange=False, zeroline=True),
+        template="plotly_white",
+        hovermode="x unified"
+    )
+    # Clé unique pour éviter l'erreur DuplicateElementId
+    st.plotly_chart(fig_i, use_container_width=True, key="current_chart_dynamic")
+
+# ==============================================================================
+# RAFRAÎCHISSEMENT
+# ==============================================================================
 if active_monitoring:
     time.sleep(0.1)
     st.rerun()

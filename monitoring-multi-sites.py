@@ -215,6 +215,3 @@ with col_graph2:
 if active_monitoring:
     time.sleep(0.1)
     st.rerun()
-        hovermode="x unified"
-    )
-    st.plotly_chart(fig_i, use_container_width=True, key="current_chart_dynamic")

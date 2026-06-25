@@ -161,21 +161,34 @@ with col_field:
 # ==============================================================================
 # LIGNE 4 : COURBES HISTORIQUES
 # ==============================================================================
+# ==============================================================================
+# LIGNE 4 : COURBES HISTORIQUES (CORRIGÉE)
+# ==============================================================================
 st.markdown("---")
 col_graph1, col_graph2 = st.columns(2)
+
 with col_graph1:
-    st.subheader("Historique CO (ppm)")
+    st.subheader("Historique Concentration CO (ppm)")
     fig_co = go.Figure()
     if not st.session_state.data_history.empty:
-        fig_co.add_trace(go.Scatter(x=st.session_state.data_history["Temps"], y=st.session_state.data_history["CO"], mode='lines', line=dict(color='red', width=3)))
-    st.plotly_chart(fig_co, use_container_width=True)
+        fig_co.add_trace(go.Scatter(
+            x=st.session_state.data_history["Temps"], 
+            y=st.session_state.data_history["CO"], 
+            mode='lines', name='CO (ppm)', line=dict(color='red', width=3)
+        ))
+    fig_co.update_layout(yaxis_range=[0, 1000], template="plotly_white")
+    # AJOUT DU KEY ICI
+    st.plotly_chart(fig_co, use_container_width=True, key="co_chart_key")
+
 with col_graph2:
     st.subheader("Historique Courant (mA)")
     fig_i = go.Figure()
     if not st.session_state.data_history.empty:
-        fig_i.add_trace(go.Scatter(x=st.session_state.data_history["Temps"], y=st.session_state.data_history["Courant"], mode='lines', line=dict(color='orange', width=3)))
-    st.plotly_chart(fig_i, use_container_width=True)
-
-if active_monitoring:
-    time.sleep(0.5) 
-    st.rerun()
+        fig_i.add_trace(go.Scatter(
+            x=st.session_state.data_history["Temps"], 
+            y=st.session_state.data_history["Courant"], 
+            mode='lines', name='I (mA)', line=dict(color='orange', width=3)
+        ))
+    fig_i.update_layout(yaxis_range=[0, 15], template="plotly_white")
+    # AJOUT DU KEY ICI
+    st.plotly_chart(fig_i, use_container_width=True, key="current_chart_key")

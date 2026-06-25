@@ -97,7 +97,7 @@ col_data, col_gauge = st.columns([1, 1])
 with col_data:
     st.subheader("⚠️ Évaluation du Risque pour l'Être Humain")
     st.table(pd.DataFrame({
-        "Concentration (ppm)": ["< 50", "100 - 200", "400 - 600", "800"],
+        "Concentration Co (ppm)": ["< 50", "100 - 200", "400 - 600", "800"],
         "Risque / Effet sur la santé": [
             "Seuil limite d'exposition moyenne (8 heures).",
             "Risque modéré : maux de tête, vertiges, essoufflement.",
@@ -170,7 +170,7 @@ with col_field:
 col_graph1, col_graph2 = st.columns(2)
 
 with col_graph1:
-    st.subheader("Historique Concentration CO (ppm)")
+    st.subheader("Historique Concentration Co (ppm)")
     fig_co = go.Figure()
     if not st.session_state.data_history.empty:
         fig_co.add_trace(go.Scatter(
@@ -180,7 +180,7 @@ with col_graph1:
         ))
     
     fig_co.update_layout(
-        yaxis_title="Concentration (ppm)",
+        yaxis_title="Concentration Co (ppm)",
         xaxis_title="Temps",
         yaxis=dict(autorange=True, fixedrange=False, zeroline=True),
         template="plotly_white",

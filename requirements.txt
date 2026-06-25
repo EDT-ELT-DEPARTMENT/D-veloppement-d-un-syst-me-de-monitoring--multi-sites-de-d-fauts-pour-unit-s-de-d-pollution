@@ -7,3 +7,4 @@ firebase-admin
 pyserial
 streamlit-autorefresh
 fpdf2
+matplotlib

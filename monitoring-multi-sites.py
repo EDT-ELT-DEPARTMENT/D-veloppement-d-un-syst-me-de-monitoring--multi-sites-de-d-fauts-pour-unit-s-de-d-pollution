@@ -5,7 +5,17 @@ import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 import time
 from datetime import datetime
-
+# Masquer les éléments du menu supérieur (Share, Star, Edit, etc.)
+hide_st_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            header {visibility: hidden;}
+            footer {visibility: hidden;}
+            .stAppDeployButton {display:none;}
+            #stDecoration {display:none;}
+            </style>
+            """
+st.markdown(hide_st_style, unsafe_allow_html=True)
 # ==============================================================================
 # CONFIGURATION DE LA PLATEFORME
 # ==============================================================================

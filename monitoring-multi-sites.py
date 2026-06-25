@@ -161,6 +161,9 @@ with col_field:
 # ==============================================================================
 # LIGNE 4 : COURBES HISTORIQUES
 # ==============================================================================
+# ==============================================================================
+# LIGNE 4 : COURBES HISTORIQUES (OPTIMISÉES)
+# ==============================================================================
 st.markdown("---")
 col_graph1, col_graph2 = st.columns(2)
 
@@ -171,9 +174,21 @@ with col_graph1:
         fig_co.add_trace(go.Scatter(
             x=st.session_state.data_history["Temps"], 
             y=st.session_state.data_history["CO"], 
-            mode='lines', name='CO (ppm)', line=dict(color='red', width=3)
+            mode='lines', name='CO (ppm)', line=dict(color='#e74c3c', width=3)
         ))
-    fig_co.update_layout(yaxis_range=[0, 1000], template="plotly_white")
+    
+    # Configuration du calibrage et de la légende
+    fig_co.update_layout(
+        yaxis_title="Concentration (ppm)",
+        xaxis_title="Temps",
+        yaxis=dict(
+            autorange=True,        # S'adapte au calibre des données
+            fixedrange=False,
+            zeroline=True
+        ),
+        template="plotly_white",
+        hovermode="x unified"      # Très utile pour le suivi précis
+    )
     st.plotly_chart(fig_co, use_container_width=True, key="co_chart_dynamic")
 
 with col_graph2:
@@ -183,11 +198,19 @@ with col_graph2:
         fig_i.add_trace(go.Scatter(
             x=st.session_state.data_history["Temps"], 
             y=st.session_state.data_history["Courant"], 
-            mode='lines', name='I (mA)', line=dict(color='orange', width=3)
+            mode='lines', name='I (mA)', line=dict(color='#f39c12', width=3)
         ))
-    fig_i.update_layout(yaxis_range=[0, 15], template="plotly_white")
+    
+    # Configuration du calibrage et de la légende
+    fig_i.update_layout(
+        yaxis_title="Courant de décharge (mA)",
+        xaxis_title="Temps",
+        yaxis=dict(
+            autorange=True,        # S'adapte au calibre des données
+            fixedrange=False,
+            zeroline=True
+        ),
+        template="plotly_white",
+        hovermode="x unified"
+    )
     st.plotly_chart(fig_i, use_container_width=True, key="current_chart_dynamic")
-
-if active_monitoring:
-    time.sleep(0.1) # Réduit à 0.1s pour plus de fluidité
-    st.rerun()

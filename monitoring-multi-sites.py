@@ -9,26 +9,20 @@ from datetime import datetime, timedelta
 # Configuration de la page
 # ==========================================
 st.set_page_config(
-    page_title="Monitoring Multi-Sites | Dépollution", 
+    page_title="Monitoring Industriel | Supervision", 
     page_icon="🏭", 
     layout="wide"
 )
 
 # ==========================================
-# Initialisation de l'état des données
+# Fonctions de simulation de données
 # ==========================================
-if 'data_cimenterie' not in st.session_state:
-    st.session_state.data_cimenterie = None
-
-if 'data_petroliere' not in st.session_state:
-    st.session_state.data_petroliere = None
-
-# ==========================================
-# Fonctions de gestion des données
-# ==========================================
-def update_sensor_data(site_type):
-    """Génère ou met à jour les données des capteurs."""
-    points = 50
+def get_sensor_data(site_type, points=50):
+    """
+    Génère des données de simulation pour les capteurs industriels.
+    Dans une version de production, cette fonction sera remplacée par 
+    une requête vers votre base de données ou votre flux MQTT.
+    """
     times = [datetime.now() - timedelta(minutes=i) for i in range(points, 0, -1)]
     
     if site_type == "Cimenterie":
@@ -67,45 +61,45 @@ st.title(f"Supervision de l'Unité de Dépollution : {site_selection}")
 st.markdown("---")
 
 # ==========================================
-# Logique d'affichage
+# Logique d'affichage par site
 # ==========================================
 
-# Affichage Cimenterie
+# Cas 1 : Cimenterie
 if site_selection == "Cimenterie":
     st.subheader("État de l'Électrofiltre (Filtre à particules)")
     
-    # Mise à jour des données
-    df = update_sensor_data("Cimenterie")
+    # Récupération des données
+    df = get_sensor_data("Cimenterie")
     latest = df.iloc[-1]
     
-    # Métriques principales (KPIs)
+    # Affichage des KPIs
     col1, col2, col3 = st.columns(3)
     col1.metric("Tension Haute Tension", f"{latest['Tension_kV']:.1f} kV")
     col2.metric("Courant de Décharge", f"{latest['Courant_mA']:.0f} mA")
     col3.metric("Émission Particules Fines", f"{latest['Poussieres_mg']:.1f} mg/Nm³")
     
-    # Graphique d'évolution
+    # Visualisation
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["Heure"], y=df["Poussieres_mg"], mode='lines+markers', name='Poussières (mg/Nm³)', line=dict(color='red')))
     fig.add_trace(go.Scatter(x=df["Heure"], y=df["Tension_kV"], mode='lines', name='Tension (kV)', line=dict(color='blue', dash='dot')))
     fig.update_layout(title="Évolution des paramètres opératoires et des rejets", xaxis_title="Temps", yaxis_title="Valeurs", template="plotly_white")
     st.plotly_chart(fig, use_container_width=True)
 
-# Affichage Installation Pétrolière
+# Cas 2 : Installation Pétrolière
 elif site_selection == "Installation Pétrolière":
     st.subheader("Unité de Traitement des Gaz (Désulfuration & DeNOx)")
     
-    # Mise à jour des données
-    df = update_sensor_data("Installation Pétrolière")
+    # Récupération des données
+    df = get_sensor_data("Installation Pétrolière")
     latest = df.iloc[-1]
     
-    # Métriques principales (KPIs)
+    # Affichage des KPIs
     col1, col2, col3 = st.columns(3)
     col1.metric("Débit des Gaz", f"{latest['Debit_m3h']:.0f} m³/h")
     col2.metric("Émission SO2", f"{latest['SO2_mg']:.1f} mg/Nm³")
     col3.metric("Émission NOx", f"{latest['NOx_mg']:.1f} mg/Nm³")
     
-    # Graphique d'évolution
+    # Visualisation
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df["Heure"], y=df["SO2_mg"], mode='lines', fill='tozeroy', name='SO2 (mg/Nm³)', line=dict(color='orange')))
     fig.add_trace(go.Scatter(x=df["Heure"], y=df["NOx_mg"], mode='lines', name='NOx (mg/Nm³)', line=dict(color='purple')))

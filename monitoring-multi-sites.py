@@ -156,7 +156,40 @@ st.markdown(f"""
     <p style="font-size: 18px;">Taux de LIE atteint : {risque_expl:.4f}%</p>
 </div>
 """, unsafe_allow_html=True)
+import numpy as np
+import matplotlib.pyplot as plt
 
+# Configuration de la grille de simulation
+N = 100
+x = np.linspace(-2, 2, N)
+y = np.linspace(0, 2, N)
+X, Y = np.meshgrid(x, y)
+
+# Position de l'électrode pointue (au centre en haut)
+x_p, y_p = 0, 1.8
+# Position de la plaque (en bas)
+y_plate = 0.2
+
+# Calcul du potentiel V (Modèle simplifié)
+# V = 1/r (approximation pour une pointe)
+R = np.sqrt((X - x_p)**2 + (Y - y_p)**2)
+V = 1 / R
+
+# Calcul du champ électrique E = -grad(V)
+Ex, Ey = np.gradient(-V)
+
+# Visualisation
+plt.figure(figsize=(10, 6))
+plt.streamplot(X, Y, Ex, Ey, color=np.log(Ex**2 + Ey**2), cmap='inferno', density=1.5)
+plt.axhline(y_plate, color='black', linewidth=3, label='Électrode plan (Mise à la terre)')
+plt.scatter(x_p, y_p, color='red', s=100, label='Pointe (Haute Tension)')
+
+plt.title("Simulation du Champ Électrique (Pointe-Plan)")
+plt.xlabel("Position X")
+plt.ylabel("Position Y")
+plt.legend()
+plt.colorbar(label='Intensité du champ (log)')
+plt.show()
 # ==============================================================================
 # LIGNE 4 : COURBES HISTORIQUES
 # ==============================================================================

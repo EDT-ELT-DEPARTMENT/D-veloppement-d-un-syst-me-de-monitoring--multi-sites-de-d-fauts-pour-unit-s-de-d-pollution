@@ -2,114 +2,105 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import time
+from datetime import datetime
 
 # ==============================================================================
-# CONFIGURATION DE LA PLATEFORME
+# CONFIGURATION ET INITIALISATION
 # ==============================================================================
-st.set_page_config(
-    page_title="Simulation Dynamique CO", 
-    page_icon="⚡", 
-    layout="wide"
-)
+st.set_page_config(page_title="Monitoring Dynamique CO", layout="wide")
 
-st.title("Simulation Dynamique : Réponse du Système aux Fluctuations de Tension")
+st.title("Monitoring Dynamique : Réponse du Système aux Fluctuations")
 st.markdown("---")
 
-# ==============================================================================
-# 1. MODÉLISATION MATHÉMATIQUE (Base de données réelle)
-# ==============================================================================
-# Vos données expérimentales
-V_data = np.array([2.0, 4.0, 6.0, 8.0, 10.0])
-CO_data = np.array([800.0, 780.0, 700.0, 650.0, 480.0])
-I_data = np.array([0.48, 1.87, 5.20, 8.90, 10.45])
+# Initialisation de l'historique des données en mémoire
+if 'data_history' not in st.session_state:
+    st.session_state.data_history = pd.DataFrame(columns=["Temps", "Tension", "CO", "Courant"])
 
-# Création des modèles polynomiaux (degré 2)
-model_co = np.poly1d(np.polyfit(V_data, CO_data, 2))
-model_i = np.poly1d(np.polyfit(V_data, I_data, 2))
+# Modèles mathématiques établis (degré 2)
+V_ref = np.array([2.0, 4.0, 6.0, 8.0, 10.0])
+CO_ref = np.array([800.0, 780.0, 700.0, 650.0, 480.0])
+I_ref = np.array([0.48, 1.87, 5.20, 8.90, 10.45])
 
-# ==============================================================================
-# 2. INTERFACE DE CONTRÔLE (Sidebar)
-# ==============================================================================
-st.sidebar.header("Paramètres de la Simulation")
-v_consigne = st.sidebar.slider(
-    "Tension de consigne (kV)", 
-    min_value=2.0, 
-    max_value=12.0, 
-    value=8.0, 
-    step=0.1
-)
-
-# Nombre de points temporels
-n_points = 50
+model_co = np.poly1d(np.polyfit(V_ref, CO_ref, 2))
+model_i = np.poly1d(np.polyfit(V_ref, I_ref, 2))
 
 # ==============================================================================
-# 3. GÉNÉRATION DES DONNÉES DYNAMIQUES
+# SIDEBAR DE CONTRÔLE
 # ==============================================================================
-# Génération du temps
-t = np.linspace(0, 10, n_points)
-
-# Application de la fluctuation de 2% (Bruit aléatoire entre -0.02 et +0.02)
-fluctuation = np.random.uniform(-0.02, 0.02, n_points)
-v_t = v_consigne * (1 + fluctuation)
-
-# Calcul des réponses dynamiques selon les modèles
-co_t = model_co(v_t)
-i_t = model_i(v_t)
-
-# Préparation du DataFrame pour l'affichage
-df_sim = pd.DataFrame({
-    "Temps": t,
-    "Tension_V": v_t,
-    "CO_ppm": co_t,
-    "Courant_mA": i_t
-})
+st.sidebar.header("Paramètres de Contrôle")
+v_consigne = st.sidebar.slider("Tension de consigne (kV)", 2.0, 12.0, 8.0, 0.1)
+active_monitoring = st.sidebar.checkbox("Démarrer le monitoring en temps réel", value=False)
 
 # ==============================================================================
-# 4. AFFICHAGE DES RÉSULTATS
+# LOGIQUE DYNAMIQUE
+# ==============================================================================
+
+# Si le monitoring est actif, nous générons une nouvelle mesure
+if active_monitoring:
+    # 1. Calcul de la tension avec fluctuation de 2% (Bruit blanc)
+    fluctuation = np.random.uniform(-0.02, 0.02)
+    tension_instantanee = v_consigne * (1 + fluctuation)
+    
+    # 2. Calcul des réponses du système
+    co_instantane = max(0, model_co(tension_instantanee))
+    i_instantane = max(0, model_i(tension_instantanee))
+    
+    # 3. Ajout au DataFrame historique
+    new_data = {
+        "Temps": datetime.now().strftime("%H:%M:%S"),
+        "Tension": tension_instantanee,
+        "CO": co_instantane,
+        "Courant": i_instantane
+    }
+    
+    st.session_state.data_history = pd.concat([
+        st.session_state.data_history, 
+        pd.DataFrame([new_data])
+    ], ignore_index=True)
+    
+    # Garder seulement les 50 dernières mesures pour la lisibilité
+    if len(st.session_state.data_history) > 50:
+        st.session_state.data_history = st.session_state.data_history.iloc[-50:]
+
+# ==============================================================================
+# AFFICHAGE DE L'INTERFACE
 # ==============================================================================
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Visualisation Temporelle : Concentration CO")
+    st.subheader("Concentration CO (ppm)")
     fig_co = go.Figure()
-    fig_co.add_trace(go.Scatter(
-        x=df_sim["Temps"], 
-        y=df_sim["CO_ppm"], 
-        mode='lines', 
-        name='CO (ppm)', 
-        line=dict(color='red', width=3)
-    ))
-    fig_co.update_layout(
-        xaxis_title="Temps (s)", 
-        yaxis_title="CO (ppm)", 
-        template="plotly_white",
-        title="Variation de la concentration de CO"
-    )
+    if not st.session_state.data_history.empty:
+        fig_co.add_trace(go.Scatter(
+            x=st.session_state.data_history["Temps"], 
+            y=st.session_state.data_history["CO"], 
+            mode='lines', 
+            name='CO (ppm)', 
+            line=dict(color='red', width=3)
+        ))
+    fig_co.update_layout(yaxis_range=[0, 1000], template="plotly_white")
     st.plotly_chart(fig_co, use_container_width=True)
 
 with col2:
-    st.subheader("Visualisation Temporelle : Courant")
+    st.subheader("Courant de décharge (mA)")
     fig_i = go.Figure()
-    fig_i.add_trace(go.Scatter(
-        x=df_sim["Temps"], 
-        y=df_sim["Courant_mA"], 
-        mode='lines', 
-        name='Courant (mA)', 
-        line=dict(color='orange', width=3)
-    ))
-    fig_i.update_layout(
-        xaxis_title="Temps (s)", 
-        yaxis_title="Courant (mA)", 
-        template="plotly_white",
-        title="Variation du courant de décharge"
-    )
+    if not st.session_state.data_history.empty:
+        fig_i.add_trace(go.Scatter(
+            x=st.session_state.data_history["Temps"], 
+            y=st.session_state.data_history["Courant"], 
+            mode='lines', 
+            name='I (mA)', 
+            line=dict(color='orange', width=3)
+        ))
+    fig_i.update_layout(yaxis_range=[0, 15], template="plotly_white")
     st.plotly_chart(fig_i, use_container_width=True)
 
 # ==============================================================================
-# 5. SYNTHÈSE DES DONNÉES
+# RAFRAÎCHISSEMENT AUTOMATIQUE
 # ==============================================================================
-st.markdown("### Synthèse des mesures en temps réel")
-st.dataframe(df_sim.head(10), use_container_width=True)
-
-st.warning("Note : Le modèle montre qu'une fluctuation de 2% sur la tension entraîne une variation proportionnelle du courant, ce qui impacte directement l'efficacité d'oxydation du CO.")
+if active_monitoring:
+    time.sleep(0.5) # Vitesse de rafraîchissement (0.5 secondes)
+    st.rerun()
+else:
+    st.info("Activez le monitoring dans la barre latérale pour démarrer.")
